@@ -13,7 +13,7 @@ mkdir -p "$T"
 
 DEFS="-DWIN32_LEAN_AND_MEAN -DNOMINMAX -DUNICODE -D_UNICODE -D_WIN32_WINNT=0x0A00"
 LIBS="-luser32 -lgdi32 -lshell32 -ladvapi32 -lole32"
-TESTS="tests/main.cpp tests/test_result.cpp tests/test_result_advanced.cpp tests/test_string.cpp tests/test_handle.cpp tests/test_fs.cpp tests/test_process.cpp"
+TESTS="tests/main.cpp tests/test_result.cpp tests/test_result_advanced.cpp tests/test_string.cpp tests/test_handle.cpp tests/test_fs.cpp tests/test_process.cpp tests/test_ui.cpp"
 
 PASS=0
 FAIL=0

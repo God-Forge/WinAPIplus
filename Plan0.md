@@ -1,10 +1,12 @@
 # Plan0 — WinAPI++ 项目设计草案
 
-> 版本：v0.8（M0–M3 已完成） · 日期：2026-11-06 · 状态：M1–M3 验收通过，待开 M4
+> 版本：v0.9（M0–M5 已完成） · 日期：2026-11-06 · 状态：M4–M5 验收通过，待开 M6
 >
 > **一句话定位**：把 Win32 API 包成「现代 C++ 该有的样子」——RAII 管资源、Result 管错误、UTF-8 管字符串、原生句柄随时可拿。
 >
-> **v0.8 变更**：M1–M3 完成（Result 链式 API、`WINPP_TRY`、文件层、进程层），98 个断言全绿，§11.2 记录实施结果。
+> **v0.9 变更**：M4–M5 完成（窗口/消息循环/DPI/控件/消息框/托盘），115 个断言全绿，§11.3 记录实施结果。
+>
+> **v0.8 变更**：M1–M3 完成（Result 链式 API、`WINPP_TRY`、文件层、进程层），98 个断言全绿。
 >
 > **v0.7 变更**：CMake 4.5 构建验证完成（双工具链 × 三形态 = 6 组，含 ctest）；查明 CMake 崩溃真因是运行沙箱限制而非 CMake 本身。
 >
@@ -798,8 +800,8 @@ MinGW 侧实现要点：
 | **M1 基础** ✅ | `error`、`Result`、`basic_handle`、UTF-8 互转、`WINPP_TRY`、`map`/`and_then` | 三标准单测全绿；C++11 下 `Result` 移动/析构无泄漏 | M |
 | **M2 文件** ✅ | `fs::open/read_text/read_all/write`、`fs::join/full_path/exists/remove/known_folder` | 能读写 UTF-8 中文路径文件（三标准） | M |
 | **M3 进程** ✅ | `process::run` / `spawn`、管道捕获 stdout/stderr | `run({"cmd /c echo hi"})` 拿到 `hi` | M |
-| **M4 窗口** | `window_class`、`window`、消息循环、DPI 感知 | `hello_window` 显示并正常关闭 | L |
-| **M5 控件** | 按钮/编辑框/列表薄壳、对话框、托盘 | 带按钮的示例可交互 | L |
+| **M4 窗口** ✅ | `window_class`、`window`、消息循环、DPI 感知 | `hello_window` 显示并正常关闭 | L |
+| **M5 控件** ✅ | 按钮/编辑框/列表薄壳、消息框、托盘 | 带按钮的示例可交互 | L |
 | **M6 周边** | 注册表、环境变量、时间、剪贴板、`ComPtr` | 对应单测通过 | M |
 | **M7 GDI** | DC、画笔、画刷、字体、双缓冲 | 示例窗口绘制并抗闪烁 | M |
 
@@ -858,6 +860,34 @@ MinGW 侧实现要点：
 5. **`process::run` 的输出按原始字节返回**，未做代码页转换。cmd 的 `echo` 输出是 OEM 代码页（中文环境为 GBK），直接当 UTF-8 打印会乱码。后续可加 `codepage` 选项或 `oem_to_utf8()` 辅助函数。
 
 **下一步**：M4（窗口与消息循环）。
+
+### 11.3 M4–M5 实施记录（2026-11-06）
+
+**完成情况**
+
+| 项 | 结果 |
+| --- | --- |
+| M4：`window` / `message_loop` / DPI 感知 | 完成 |
+| M5：`button` / `edit` / `listbox` / `message_box` / `tray_icon` | 完成 |
+| 单元测试 | **34 个用例 / 115 个断言全绿** |
+| MinGW 直接编译：三标准 × 三形态 | 9 / 9 |
+| CMake 构建：MinGW 三形态 + MSVC 三形态 | 6 / 6 |
+
+**设计决策**
+
+1. **GUI 层全部头文件内联**：`window`、`control` 等不导出符号，三形态行为一致，避免跨 DLL 传 `std::function` 的坑。
+2. **消息处理器用运行时 `std::unordered_map`**：按 M0 决策 Q3 落地。
+3. **`WndProc` 用 `GWLP_USERDATA` 绑定 this**：`WM_NCCREATE` 时写入；窗口对象移动时同步更新指针，否则移动后消息会打到旧地址。
+4. **DPI 动态加载**：`GetProcAddress` 取 `SetProcessDpiAwarenessContext` / `GetDpiForWindow`，老系统自动降级。
+5. **控件只做薄壳**：创建、取文本、启停、显隐；不做布局引擎（非目标）。
+
+**已知限制**
+
+- 控件没有事件回调封装：按钮点击需自己在窗口的 `WM_COMMAND` 处理器里分发。
+- `tray_icon` 依赖 Shell 环境，无桌面会话下不可用。
+- 窗口类名固定为 `WinppWindowClass`，同一进程内共享。
+
+**下一步**：M6（注册表、环境变量、时间、剪贴板、`ComPtr`）。
 
 ---
 

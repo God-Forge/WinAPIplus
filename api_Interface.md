@@ -1,6 +1,6 @@
 # WinAPI++ API 参考
 
-> 版本：v0.1 · 对应设计文档：Plan0 v0.8 · 最后更新：2026-11-06
+> 版本：v0.2 · 对应设计文档：Plan0 v0.9 · 最后更新：2026-11-06
 >
 > 本文档只描述**已实现并通过测试**的接口。规划中的接口见 Plan0 §11 里程碑。
 
@@ -23,6 +23,11 @@
 | `<winpp/fs/file.hpp>` | `fs::file`、`fs::open` | M2 |
 | `<winpp/fs/path.hpp>` | 路径工具 | M2 |
 | `<winpp/sys/process.hpp>` | `sys::run`、`sys::process` | M3 |
+| `<winpp/ui/window.hpp>` | `ui::window`、`ui::message_loop` | M4 |
+| `<winpp/ui/dpi.hpp>` | DPI 感知 | M4 |
+| `<winpp/ui/controls.hpp>` | `button` / `edit` / `listbox` | M5 |
+| `<winpp/ui/dialog.hpp>` | `message_box` | M5 |
+| `<winpp/ui/tray.hpp>` | `tray_icon` | M5 |
 
 ---
 
@@ -512,7 +517,182 @@ if (p) {
 
 ---
 
-## 6. 兼容层（`winpp::compat`）
+## 6. 界面（`winpp::ui`）
+
+> GUI 层全部头文件内联，三种分发形态行为一致，不产生导出符号。
+
+### 6.1 `window_options`
+
+```cpp
+struct window_options {
+    string_view   title;
+    int           width  = 800;
+    int           height = 600;
+    unsigned long style  = WS_OVERLAPPEDWINDOW;
+    bool          center = true;
+};
+```
+
+### 6.2 `window`
+
+```cpp
+class window {
+public:
+    typedef std::function<LRESULT(window&, UINT, WPARAM, LPARAM)> handler;
+
+    window() noexcept;
+    window(window&&) noexcept;
+    window& operator=(window&&) noexcept;
+    window(const window&) = delete;
+    window& operator=(const window&) = delete;
+    ~window();
+
+    static Result<window> create(const window_options& opts);
+
+    bool valid() const noexcept;
+    HWND native() const noexcept;
+
+    void show(int cmd = SW_SHOW) noexcept;
+    void hide() noexcept;
+    void close() noexcept;
+    void set_title(string_view title);
+
+    void on(UINT msg, handler h);
+    void off(UINT msg);
+
+    int run();
+};
+```
+
+| 方法 | 说明 |
+| --- | --- |
+| `create(opts)` | 注册窗口类（进程内首次）并创建窗口 |
+| `valid()` | 窗口是否仍然有效 |
+| `native()` | 取 `HWND` |
+| `show` / `hide` / `close` | 显示、隐藏、投递 `WM_CLOSE` |
+| `set_title` | 设置标题（UTF-8 入参） |
+| `on(msg, h)` | 注册消息处理器；未注册的消息走 `DefWindowProcW` |
+| `off(msg)` | 注销处理器 |
+| `run()` | 局部消息循环，收到 `WM_QUIT` 返回 |
+
+```cpp
+winpp::ui::window_options opts;
+opts.title = "示例窗口";
+opts.width = 640;
+opts.height = 480;
+
+auto w = winpp::ui::window::create(opts);
+if (!w) return 1;
+
+w.value().on(WM_CLOSE, [](winpp::ui::window& self, UINT, WPARAM, LPARAM) -> LRESULT {
+    ::DestroyWindow(self.native());
+    return 0;
+});
+
+w.value().show();
+return w.value().run();
+```
+
+### 6.3 `message_loop`
+
+```cpp
+int message_loop();
+```
+
+全局消息循环，不绑定具体窗口。
+
+### 6.4 DPI
+
+```cpp
+void enable_dpi_awareness();
+unsigned int dpi_for_window(HWND hwnd);
+```
+
+- `enable_dpi_awareness()`：优先 `SetProcessDpiAwarenessContext(PER_MONITOR_AWARE_V2)`，失败降级为 `SetProcessDPIAware`。
+- `dpi_for_window(hwnd)`：`GetDpiForWindow`，老系统回退到设备上下文，默认 96。
+
+### 6.5 控件
+
+```cpp
+class control {
+public:
+    bool valid() const noexcept;
+    HWND native() const noexcept;
+
+    void set_text(string_view text);
+    std::string text() const;
+    void enable(bool on);
+    void show(int cmd = SW_SHOW);
+    void hide() noexcept;
+};
+
+class button : public control {
+public:
+    static Result<button> create(HWND parent, string_view text, int id,
+                                 int x, int y, int w, int h);
+};
+
+class edit : public control {
+public:
+    static Result<edit> create(HWND parent, string_view text, int id,
+                               int x, int y, int w, int h);
+};
+
+class listbox : public control {
+public:
+    static Result<listbox> create(HWND parent, int id, int x, int y, int w, int h);
+
+    void        add_item(string_view text);
+    int         count() const;
+    std::string item(int index) const;
+    int         selection() const;
+    void        set_selection(int index);
+};
+```
+
+```cpp
+auto btn = winpp::ui::button::create(w.value().native(), "点我", 1001, 10, 10, 120, 32);
+auto ed  = winpp::ui::edit::create(w.value().native(), "初始内容", 1002, 10, 60, 200, 28);
+auto lb  = winpp::ui::listbox::create(w.value().native(), 1003, 10, 100, 160, 120);
+
+lb.value().add_item("第一项");
+```
+
+> 控件没有事件回调封装：按钮点击需在窗口的 `WM_COMMAND` 处理器里按 `id` 分发。
+
+### 6.6 `message_box`
+
+```cpp
+int message_box(HWND owner, string_view text, string_view caption,
+                unsigned int type = MB_OK | MB_ICONINFORMATION);
+```
+
+返回值语义与 `MessageBoxW` 一致（`IDOK` / `IDCANCEL` / `IDYES` 等）。
+
+### 6.7 `tray_icon`
+
+```cpp
+class tray_icon {
+public:
+    tray_icon() noexcept;
+    ~tray_icon();
+
+    tray_icon(const tray_icon&) = delete;
+    tray_icon& operator=(const tray_icon&) = delete;
+
+    Result<void> add(HWND owner, unsigned int id, string_view tooltip, HICON icon = nullptr);
+    void remove();
+    void set_tooltip(string_view tooltip);
+
+    bool added() const noexcept;
+};
+```
+
+> 托盘依赖 Shell 环境；无桌面会话下 `add()` 会返回错误。回调消息固定为 `WM_APP + 1`。
+
+---
+
+## 7. 兼容层（`winpp::compat`）
 
 用户代码通常不需要直接碰这一层，但以下别名是公开的：
 
@@ -528,7 +708,7 @@ if (p) {
 
 ---
 
-## 7. 错误码参考
+## 8. 错误码参考
 
 | 错误码 | 含义 | 判定函数 |
 | --- | --- | --- |
@@ -541,7 +721,7 @@ if (p) {
 
 ---
 
-## 8. 已知限制
+## 9. 已知限制
 
 | 限制 | 说明 | 后续计划 |
 | --- | --- | --- |
@@ -549,11 +729,13 @@ if (p) {
 | `spawn` 不捕获输出 | `capture_*` 仅对 `run` 生效 | 后续版本 |
 | `known_folder` 用 CSIDL | `SHGetFolderPathW`，未使用 `KNOWNFOLDERID` | 后续增强 |
 | 文件共享模式 | 固定 `FILE_SHARE_READ`，不支持共享删除 | 后续可配置 |
-| 未实现层 | 窗口、GDI、注册表、服务、COM（见 Plan0 §11） | M4 起 |
+| 控件无事件回调 | 按钮点击需在窗口的 `WM_COMMAND` 处理器里按 id 分发 | 后续可加 `on_click` |
+| 托盘依赖 Shell | 无桌面会话下 `add()` 返回错误 | — |
+| 未实现层 | GDI、注册表、服务、COM（见 Plan0 §11） | M6 起 |
 
 ---
 
-## 9. 构建集成
+## 10. 构建集成
 
 当前推荐用 `add_subdirectory` 引入：
 
@@ -574,8 +756,9 @@ cmake -S . -B build -DWINPP_LIBRARY_TYPE=static    # header-only | static | shar
 
 ---
 
-## 10. 版本记录
+## 11. 版本记录
 
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
+| v0.2 | 2026-11-06 | 新增 §6 界面：window / message_loop / DPI / 控件 / message_box / tray_icon |
 | v0.1 | 2026-11-06 | 初版，覆盖 M0–M3 已实现接口 |

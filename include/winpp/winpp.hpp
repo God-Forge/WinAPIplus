@@ -18,3 +18,9 @@
 #include <winpp/fs/path.hpp>
 
 #include <winpp/sys/process.hpp>
+
+#include <winpp/ui/window.hpp>
+#include <winpp/ui/dpi.hpp>
+#include <winpp/ui/controls.hpp>
+#include <winpp/ui/dialog.hpp>
+#include <winpp/ui/tray.hpp>

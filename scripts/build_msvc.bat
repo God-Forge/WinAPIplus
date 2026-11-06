@@ -19,7 +19,7 @@ if not exist "%T%" mkdir "%T%"
 set DEFS=/DWIN32_LEAN_AND_MEAN /DNOMINMAX /DUNICODE /D_UNICODE /D_WIN32_WINNT=0x0A00
 set FLAGS=/std:c++17 /utf-8 /EHsc /W4 /nologo /I "%ROOT%\include" /I "%ROOT%\third_party"
 set LIBS=user32.lib gdi32.lib shell32.lib advapi32.lib ole32.lib
-set TESTS="%ROOT%\tests\main.cpp" "%ROOT%\tests\test_result.cpp" "%ROOT%\tests\test_result_advanced.cpp" "%ROOT%\tests\test_string.cpp" "%ROOT%\tests\test_handle.cpp" "%ROOT%\tests\test_fs.cpp" "%ROOT%\tests\test_process.cpp"
+set TESTS="%ROOT%\tests\main.cpp" "%ROOT%\tests\test_result.cpp" "%ROOT%\tests\test_result_advanced.cpp" "%ROOT%\tests\test_string.cpp" "%ROOT%\tests\test_handle.cpp" "%ROOT%\tests\test_fs.cpp" "%ROOT%\tests\test_process.cpp" "%ROOT%\tests\test_ui.cpp"
 set PASS=0
 set FAIL=0
 
