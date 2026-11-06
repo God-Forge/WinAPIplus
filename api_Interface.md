@@ -1,6 +1,6 @@
 # WinAPI++ API 参考
 
-> 版本：v0.2 · 对应设计文档：Plan0 v0.9 · 最后更新：2026-11-06
+> 版本：v0.3 · 对应设计文档：Plan0 v1.0 · 最后更新：2026-11-06
 >
 > 本文档只描述**已实现并通过测试**的接口。规划中的接口见 Plan0 §11 里程碑。
 
@@ -28,6 +28,11 @@
 | `<winpp/ui/controls.hpp>` | `button` / `edit` / `listbox` | M5 |
 | `<winpp/ui/dialog.hpp>` | `message_box` | M5 |
 | `<winpp/ui/tray.hpp>` | `tray_icon` | M5 |
+| `<winpp/sys/registry.hpp>` | `sys::key`（注册表） | M6 |
+| `<winpp/sys/env.hpp>` | 环境变量 | M6 |
+| `<winpp/sys/time.hpp>` | 时间 | M6 |
+| `<winpp/ui/clipboard.hpp>` | 剪贴板 | M6 |
+| `<winpp/com/com_ptr.hpp>` | `com::com_ptr` | M6 |
 
 ---
 
@@ -692,7 +697,136 @@ public:
 
 ---
 
-## 7. 兼容层（`winpp::compat`）
+## 7. 系统工具（`winpp::sys` / `winpp::ui` / `winpp::com`）
+
+### 7.1 注册表（`sys::key`）
+
+```cpp
+class key {
+public:
+    key() noexcept;
+    explicit key(HKEY h) noexcept;
+    key(key&&) noexcept;
+    key& operator=(key&&) noexcept;
+    key(const key&) = delete;
+    key& operator=(const key&) = delete;
+    ~key();
+
+    bool valid() const noexcept;
+    HKEY native() const noexcept;
+
+    static Result<key> open(HKEY root, string_view subkey, unsigned long access = KEY_READ);
+    static Result<key> create(HKEY root, string_view subkey, unsigned long access = KEY_WRITE);
+
+    WINPP_NODISCARD Result<std::string>   get_string(string_view name) const;
+    WINPP_NODISCARD Result<unsigned long> get_dword(string_view name) const;
+
+    WINPP_NODISCARD Result<void> set_string(string_view name, string_view value);
+    WINPP_NODISCARD Result<void> set_dword(string_view name, unsigned long value);
+
+    WINPP_NODISCARD Result<void> remove_value(string_view name);
+    WINPP_NODISCARD Result<void> remove_subkey(string_view subkey);
+    WINPP_NODISCARD Result<void> remove_tree(string_view subkey);
+};
+```
+
+```cpp
+auto k = winpp::sys::key::create(HKEY_CURRENT_USER, "Software\\MyApp", KEY_ALL_ACCESS);
+if (k) {
+    k.value().set_string("Name", "演示");
+    auto v = k.value().get_string("Name");
+}
+```
+
+> 部分受限进程只能读注册表，写操作会返回 `ERROR_ACCESS_DENIED`（错误码 5）。
+
+### 7.2 环境变量
+
+```cpp
+WINPP_NODISCARD Result<std::string> get_env(string_view name);
+WINPP_NODISCARD Result<void>        set_env(string_view name, string_view value);
+WINPP_NODISCARD Result<void>        unset_env(string_view name);
+
+// 展开 %VAR% 引用
+WINPP_NODISCARD std::string expand_env(string_view input);
+```
+
+```cpp
+winpp::sys::set_env("MY_VAR", "hello");
+auto v = winpp::sys::get_env("MY_VAR");          // "hello"
+auto p = winpp::sys::expand_env("%MY_VAR%\\a");  // "hello\\a"
+```
+
+### 7.3 时间
+
+```cpp
+struct system_time {
+    unsigned short year;
+    unsigned short month;
+    unsigned short day;
+    unsigned short hour;
+    unsigned short minute;
+    unsigned short second;
+    unsigned short millisecond;
+};
+
+WINPP_NODISCARD system_time local_time();
+WINPP_NODISCARD system_time utc_time();
+WINPP_NODISCARD unsigned long long now_unix_ms();
+WINPP_NODISCARD std::string format_time(const system_time& t);   // "YYYY-MM-DD HH:MM:SS"
+```
+
+### 7.4 剪贴板（`ui`）
+
+```cpp
+WINPP_NODISCARD Result<std::string> clipboard_text();
+WINPP_NODISCARD Result<void>        set_clipboard_text(string_view text);
+```
+
+> 依赖桌面会话；无桌面时 `set_clipboard_text` 会失败。
+
+### 7.5 COM（`com`）
+
+```cpp
+WINPP_NODISCARD Result<void> initialize();   // CoInitializeEx(STA)
+void uninitialize();
+
+template <class T>
+class com_ptr {
+public:
+    com_ptr() noexcept;
+    explicit com_ptr(T* p) noexcept;
+    com_ptr(com_ptr&&) noexcept;
+    com_ptr& operator=(com_ptr&&) noexcept;
+    ~com_ptr();
+
+    T*  get() const noexcept;
+    T** put() noexcept;
+    T*  operator->() const noexcept;
+    explicit operator bool() const noexcept;
+
+    void reset(T* p = nullptr) noexcept;
+    T*   detach() noexcept;
+};
+
+template <class T>
+WINPP_NODISCARD Result<com_ptr<T>> create(REFCLSID clsid, REFIID iid);
+```
+
+```cpp
+winpp::com::initialize();
+auto shell = winpp::com::create<IShellLinkW>(CLSID_ShellLink, IID_IShellLinkW);
+if (shell) {
+    // shell->SetPath(...)
+}
+winpp::com::uninitialize();
+```
+
+> `create()` 显式传 IID，因为 MinGW 的 GCC 不支持 `__uuidof` 扩展。
+
+---
+
+## 8. 兼容层（`winpp::compat`）
 
 用户代码通常不需要直接碰这一层，但以下别名是公开的：
 
@@ -708,7 +842,7 @@ public:
 
 ---
 
-## 8. 错误码参考
+## 9. 错误码参考
 
 | 错误码 | 含义 | 判定函数 |
 | --- | --- | --- |
@@ -721,7 +855,7 @@ public:
 
 ---
 
-## 9. 已知限制
+## 10. 已知限制
 
 | 限制 | 说明 | 后续计划 |
 | --- | --- | --- |
@@ -731,11 +865,14 @@ public:
 | 文件共享模式 | 固定 `FILE_SHARE_READ`，不支持共享删除 | 后续可配置 |
 | 控件无事件回调 | 按钮点击需在窗口的 `WM_COMMAND` 处理器里按 id 分发 | 后续可加 `on_click` |
 | 托盘依赖 Shell | 无桌面会话下 `add()` 返回错误 | — |
-| 未实现层 | GDI、注册表、服务、COM（见 Plan0 §11） | M6 起 |
+| 注册表写权限 | 受限进程写 HKCU 会被拒绝（错误码 5） | 由运行环境决定 |
+| 剪贴板依赖桌面 | 无桌面会话下 `set_clipboard_text` 失败 | 由运行环境决定 |
+| `com_ptr` 能力有限 | 仅支持 `CoCreateInstance` 创建，未封装 `QueryInterface` 便捷方法 | 后续可加 |
+| 未实现层 | GDI 绘制、系统服务（见 Plan0 §11） | M7 起 |
 
 ---
 
-## 10. 构建集成
+## 11. 构建集成
 
 当前推荐用 `add_subdirectory` 引入：
 
@@ -756,9 +893,10 @@ cmake -S . -B build -DWINPP_LIBRARY_TYPE=static    # header-only | static | shar
 
 ---
 
-## 11. 版本记录
+## 12. 版本记录
 
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
+| v0.3 | 2026-11-06 | 新增 §7 系统工具：注册表 / 环境变量 / 时间 / 剪贴板 / COM |
 | v0.2 | 2026-11-06 | 新增 §6 界面：window / message_loop / DPI / 控件 / message_box / tray_icon |
 | v0.1 | 2026-11-06 | 初版，覆盖 M0–M3 已实现接口 |

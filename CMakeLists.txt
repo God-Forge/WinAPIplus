@@ -57,7 +57,11 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/src/error.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/string.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/fs.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/process.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/process.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/registry.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/env.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/time.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/clipboard.cpp)
 
     if(WINPP_LIBRARY_TYPE STREQUAL "shared")
         add_library(winpp SHARED ${WINPP_SOURCES})
@@ -86,7 +90,9 @@ if(WINPP_BUILD_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_handle.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_fs.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_process.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ui.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ui.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sys.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_com.cpp)
     target_include_directories(winpp_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
     target_link_libraries(winpp_tests PRIVATE winpp)
     add_test(NAME winpp_tests COMMAND winpp_tests)

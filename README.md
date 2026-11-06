@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-**M0–M5 里程碑已完成**：兼容层、核心类型、文件层、进程层、窗口与控件全部就位。
+**M0–M6 里程碑已完成**：兼容层、核心类型、文件层、进程层、界面层、系统工具全部就位。
 
 | 验证项 | 结果 |
 | --- | --- |
@@ -16,7 +16,7 @@
 | CMake 4.5 构建：MinGW 三形态（含 ctest） | 3 / 3 通过 |
 | CMake 4.5 构建：MSVC 三形态（含 ctest） | 3 / 3 通过 |
 | 编译警告 | 0 |
-| 单元测试 | **34 个用例 / 115 个断言全绿** |
+| 单元测试 | **40 个用例 / 140 个断言全绿** |
 
 已实现的能力：
 
@@ -26,6 +26,7 @@
 | 文件 | `fs::open` / `read_text` / `read_all` / `write` / `size`、`fs::join` / `full_path` / `exists` / `remove` / `known_folder` |
 | 进程 | `sys::run`（捕获 stdout/stderr）、`sys::process::spawn` / `wait` / `kill` |
 | 界面 | `ui::window` / `message_loop` / DPI 感知、`button` / `edit` / `listbox`、`message_box`、`tray_icon` |
+| 系统 | `sys::key`（注册表）、`sys::get_env` / `set_env` / `expand_env`、`sys::local_time` / `now_unix_ms`、`ui::clipboard_text`、`com::com_ptr` |
 
 ---
 

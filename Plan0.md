@@ -1,10 +1,12 @@
 # Plan0 — WinAPI++ 项目设计草案
 
-> 版本：v0.9（M0–M5 已完成） · 日期：2026-11-06 · 状态：M4–M5 验收通过，待开 M6
+> 版本：v1.0（M0–M6 已完成） · 日期：2026-11-06 · 状态：M6 验收通过，待开 M7
 >
 > **一句话定位**：把 Win32 API 包成「现代 C++ 该有的样子」——RAII 管资源、Result 管错误、UTF-8 管字符串、原生句柄随时可拿。
 >
-> **v0.9 变更**：M4–M5 完成（窗口/消息循环/DPI/控件/消息框/托盘），115 个断言全绿，§11.3 记录实施结果。
+> **v1.0 变更**：M6 完成（注册表/环境变量/时间/剪贴板/COM），140 个断言全绿，§11.4 记录实施结果。
+>
+> **v0.9 变更**：M4–M5 完成（窗口/消息循环/DPI/控件/消息框/托盘），115 个断言全绿。
 >
 > **v0.8 变更**：M1–M3 完成（Result 链式 API、`WINPP_TRY`、文件层、进程层），98 个断言全绿。
 >
@@ -802,7 +804,7 @@ MinGW 侧实现要点：
 | **M3 进程** ✅ | `process::run` / `spawn`、管道捕获 stdout/stderr | `run({"cmd /c echo hi"})` 拿到 `hi` | M |
 | **M4 窗口** ✅ | `window_class`、`window`、消息循环、DPI 感知 | `hello_window` 显示并正常关闭 | L |
 | **M5 控件** ✅ | 按钮/编辑框/列表薄壳、消息框、托盘 | 带按钮的示例可交互 | L |
-| **M6 周边** | 注册表、环境变量、时间、剪贴板、`ComPtr` | 对应单测通过 | M |
+| **M6 周边** ✅ | 注册表、环境变量、时间、剪贴板、`ComPtr` | 对应单测通过 | M |
 | **M7 GDI** | DC、画笔、画刷、字体、双缓冲 | 示例窗口绘制并抗闪烁 | M |
 
 **建议节奏**：M0–M3 一次做完（兼容层 + 基础 + 文件 + 进程），即可覆盖日常脚本类需求；M4 之后再考虑 GUI。
@@ -888,6 +890,35 @@ MinGW 侧实现要点：
 - 窗口类名固定为 `WinppWindowClass`，同一进程内共享。
 
 **下一步**：M6（注册表、环境变量、时间、剪贴板、`ComPtr`）。
+
+### 11.4 M6 实施记录（2026-11-06）
+
+**完成情况**
+
+| 项 | 结果 |
+| --- | --- |
+| M6：`sys::key`（注册表）、`sys::get_env` / `set_env` / `unset_env` / `expand_env` | 完成 |
+| M6：`sys::local_time` / `utc_time` / `now_unix_ms` / `format_time` | 完成 |
+| M6：`ui::clipboard_text` / `set_clipboard_text` | 完成 |
+| M6：`com::com_ptr` / `com::initialize` / `uninitialize` | 完成 |
+| 单元测试 | **40 个用例 / 140 个断言全绿** |
+| MinGW 直接编译：三标准 × 三形态 | 9 / 9 |
+| CMake 构建：MinGW 三形态 + MSVC 三形态 | 6 / 6 |
+
+**设计决策**
+
+1. **`registry_traits` 加入句柄家族**：`HKEY` 用 `RegCloseKey` 释放，`key` 类直接复用 `basic_handle`。
+2. **`key` 只做薄封装**：字符串 / DWORD 的读写删，不封装枚举、权限、通知。
+3. **`com_ptr` 不依赖 `__uuidof`**：`create(clsid, iid)` 显式传 IID——MinGW 的 GCC 没有 `__uuidof` 扩展。
+4. **时间用 FILETIME 换算**：`now_unix_ms()` 从 1601 基准换算到 Unix 毫秒。
+
+**已知限制**
+
+- 注册表写操作在部分受限进程里会被拒绝（`ERROR_ACCESS_DENIED`），测试对此做了跳过处理。
+- 剪贴板依赖桌面会话，无桌面时 `set_clipboard_text` 会失败。
+- `com_ptr` 只支持 `CoCreateInstance` 创建，未封装 `QueryInterface` 便捷方法。
+
+**下一步**：M7（GDI 绘制）。
 
 ---
 

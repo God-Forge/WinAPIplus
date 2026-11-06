@@ -51,10 +51,18 @@ struct module_traits {
     static void close(value_type h) noexcept { if (h != nullptr) ::FreeLibrary(h); }
 };
 
+// 注册表键：用 RegCloseKey 释放
+struct registry_traits {
+    typedef HKEY value_type;
+    static value_type invalid() noexcept { return nullptr; }
+    static void close(value_type h) noexcept { if (h != nullptr) ::RegCloseKey(h); }
+};
+
 typedef basic_handle<file_traits>      file_handle;
 typedef basic_handle<event_traits>     event_handle;
 typedef basic_handle<mutex_traits>     mutex_handle;
 typedef basic_handle<semaphore_traits> semaphore_handle;
 typedef basic_handle<module_traits>    module_handle;
+typedef basic_handle<registry_traits>  registry_key;
 
 }  // namespace winpp

@@ -13,7 +13,7 @@ mkdir -p "$T"
 
 DEFS="-DWIN32_LEAN_AND_MEAN -DNOMINMAX -DUNICODE -D_UNICODE -D_WIN32_WINNT=0x0A00"
 LIBS="-luser32 -lgdi32 -lshell32 -ladvapi32 -lole32"
-TESTS="tests/main.cpp tests/test_result.cpp tests/test_result_advanced.cpp tests/test_string.cpp tests/test_handle.cpp tests/test_fs.cpp tests/test_process.cpp tests/test_ui.cpp"
+TESTS="tests/main.cpp tests/test_result.cpp tests/test_result_advanced.cpp tests/test_string.cpp tests/test_handle.cpp tests/test_fs.cpp tests/test_process.cpp tests/test_ui.cpp tests/test_sys.cpp tests/test_com.cpp"
 
 PASS=0
 FAIL=0
@@ -45,14 +45,18 @@ for STD in c++11 c++17 c++23; do
         && "$GXX" $BASE -c src/string.cpp -o "$T/string-$STD.o" >> "$T/st-$STD.log" 2>&1 \
         && "$GXX" $BASE -c src/fs.cpp -o "$T/fs-$STD.o" >> "$T/st-$STD.log" 2>&1 \
         && "$GXX" $BASE -c src/process.cpp -o "$T/process-$STD.o" >> "$T/st-$STD.log" 2>&1 \
-        && "$AR" rcs "$T/libwinpp-$STD.a" "$T/error-$STD.o" "$T/string-$STD.o" "$T/fs-$STD.o" "$T/process-$STD.o" >> "$T/st-$STD.log" 2>&1 \
+        && "$GXX" $BASE -c src/registry.cpp -o "$T/registry-$STD.o" >> "$T/st-$STD.log" 2>&1 \
+        && "$GXX" $BASE -c src/env.cpp -o "$T/env-$STD.o" >> "$T/st-$STD.log" 2>&1 \
+        && "$GXX" $BASE -c src/time.cpp -o "$T/time-$STD.o" >> "$T/st-$STD.log" 2>&1 \
+        && "$GXX" $BASE -c src/clipboard.cpp -o "$T/clipboard-$STD.o" >> "$T/st-$STD.log" 2>&1 \
+        && "$AR" rcs "$T/libwinpp-$STD.a" "$T/error-$STD.o" "$T/string-$STD.o" "$T/fs-$STD.o" "$T/process-$STD.o" "$T/registry-$STD.o" "$T/env-$STD.o" "$T/time-$STD.o" "$T/clipboard-$STD.o" >> "$T/st-$STD.log" 2>&1 \
         && "$GXX" $BASE -I third_party $TESTS "$T/libwinpp-$STD.a" -o "$T/st-$STD.exe" $LIBS >> "$T/st-$STD.log" 2>&1 \
         && "./$T/st-$STD.exe" > /dev/null 2>&1
     report "MinGW $STD  static" $?
 
     # ---------- shared ----------
     "$GXX" $BASE -DWINPP_BUILD_SHARED -shared -o "$T/winpp-$STD.dll" \
-        "$T/error-$STD.o" "$T/string-$STD.o" "$T/fs-$STD.o" "$T/process-$STD.o" $LIBS \
+        "$T/error-$STD.o" "$T/string-$STD.o" "$T/fs-$STD.o" "$T/process-$STD.o" "$T/registry-$STD.o" "$T/env-$STD.o" "$T/time-$STD.o" "$T/clipboard-$STD.o" $LIBS \
         -Wl,--out-implib,"$T/libwinpp-$STD.dll.a" > "$T/sh-$STD.log" 2>&1 \
         && "$GXX" $BASE -DWINPP_USE_SHARED -I third_party $TESTS "$T/libwinpp-$STD.dll.a" \
             -o "$T/sh-$STD.exe" $LIBS >> "$T/sh-$STD.log" 2>&1 \
