@@ -58,11 +58,40 @@ struct registry_traits {
     static void close(value_type h) noexcept { if (h != nullptr) ::RegCloseKey(h); }
 };
 
+// GDI 对象：统一用 DeleteObject 释放
+struct pen_traits {
+    typedef HPEN value_type;
+    static value_type invalid() noexcept { return nullptr; }
+    static void close(value_type h) noexcept { if (h != nullptr) ::DeleteObject(h); }
+};
+
+struct brush_traits {
+    typedef HBRUSH value_type;
+    static value_type invalid() noexcept { return nullptr; }
+    static void close(value_type h) noexcept { if (h != nullptr) ::DeleteObject(h); }
+};
+
+struct font_traits {
+    typedef HFONT value_type;
+    static value_type invalid() noexcept { return nullptr; }
+    static void close(value_type h) noexcept { if (h != nullptr) ::DeleteObject(h); }
+};
+
+struct bitmap_traits {
+    typedef HBITMAP value_type;
+    static value_type invalid() noexcept { return nullptr; }
+    static void close(value_type h) noexcept { if (h != nullptr) ::DeleteObject(h); }
+};
+
 typedef basic_handle<file_traits>      file_handle;
 typedef basic_handle<event_traits>     event_handle;
 typedef basic_handle<mutex_traits>     mutex_handle;
 typedef basic_handle<semaphore_traits> semaphore_handle;
 typedef basic_handle<module_traits>    module_handle;
 typedef basic_handle<registry_traits>  registry_key;
+typedef basic_handle<pen_traits>       pen_handle;
+typedef basic_handle<brush_traits>     brush_handle;
+typedef basic_handle<font_traits>      font_handle;
+typedef basic_handle<bitmap_traits>    bitmap_handle;
 
 }  // namespace winpp

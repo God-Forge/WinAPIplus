@@ -29,4 +29,7 @@
 #include <winpp/ui/tray.hpp>
 #include <winpp/ui/clipboard.hpp>
 
+#include <winpp/gdi/dc.hpp>
+#include <winpp/gdi/objects.hpp>
+
 #include <winpp/com/com_ptr.hpp>

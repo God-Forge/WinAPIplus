@@ -15,6 +15,10 @@
 #  include <string_view>
 #endif
 
+#if WINPP_HAS_SPAN
+#  include <span>
+#endif
+
 namespace winpp {
 
 // ---------------------------------------------------------------

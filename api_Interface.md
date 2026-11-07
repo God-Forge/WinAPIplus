@@ -1,6 +1,6 @@
 # WinAPI++ API 参考
 
-> 版本：v0.3 · 对应设计文档：Plan0 v1.0 · 最后更新：2026-11-06
+> 版本：v0.4 · 对应设计文档：Plan0 v1.1 · 最后更新：2026-11-07
 >
 > 本文档只描述**已实现并通过测试**的接口。规划中的接口见 Plan0 §11 里程碑。
 
@@ -33,6 +33,8 @@
 | `<winpp/sys/time.hpp>` | 时间 | M6 |
 | `<winpp/ui/clipboard.hpp>` | 剪贴板 | M6 |
 | `<winpp/com/com_ptr.hpp>` | `com::com_ptr` | M6 |
+| `<winpp/gdi/dc.hpp>` | `gdi::dc`、`back_buffer` | M7 |
+| `<winpp/gdi/objects.hpp>` | `pen` / `brush` / `font`、`object_selector` | M7 |
 
 ---
 
@@ -826,7 +828,129 @@ winpp::com::uninitialize();
 
 ---
 
-## 8. 兼容层（`winpp::compat`）
+## 8. GDI 绘制（`winpp::gdi`）
+
+### 8.1 `dc`
+
+```cpp
+class dc {
+public:
+    dc() noexcept;
+    explicit dc(HDC h) noexcept;
+    dc(dc&&) noexcept;
+    dc& operator=(dc&&) noexcept;
+    dc(const dc&) = delete;
+    ~dc();
+
+    bool valid() const noexcept;
+    HDC  native() const noexcept;
+
+    static dc borrow(HDC h) noexcept;                 // 借用外部 DC，析构不释放
+    static Result<dc> from_window(HWND hwnd);         // GetDC / ReleaseDC
+    static Result<dc> create_compatible(HDC src);     // CreateCompatibleDC / DeleteDC
+
+    void release() noexcept;
+
+    void fill_rect(const RECT& rc, HBRUSH brush) noexcept;
+    void text_out(int x, int y, string_view text);
+    void text_rect(const RECT& rc, string_view text, unsigned format = DT_LEFT);
+    void set_text_color(COLORREF color) noexcept;
+    void set_bk_mode(int mode) noexcept;
+    void set_bk_color(COLORREF color) noexcept;
+    void rectangle(const RECT& rc) noexcept;
+    void line(int x1, int y1, int x2, int y2) noexcept;
+    void ellipse(const RECT& rc) noexcept;
+};
+```
+
+| 工厂 | 说明 |
+| --- | --- |
+| `borrow(h)` | 借用，不负责释放（如 `BeginPaint` 的 DC） |
+| `from_window(hwnd)` | 窗口 DC，析构时 `ReleaseDC`；`hwnd` 为 `nullptr` 表示屏幕 DC |
+| `create_compatible(src)` | 内存 DC，析构时 `DeleteDC` |
+
+### 8.2 画笔 / 画刷 / 字体
+
+```cpp
+typedef basic_handle<pen_traits>   pen;
+typedef basic_handle<brush_traits> brush;
+typedef basic_handle<font_traits>  font;
+
+WINPP_NODISCARD Result<pen>   create_pen(COLORREF color, int width = 1, int style = PS_SOLID);
+WINPP_NODISCARD Result<brush> create_solid_brush(COLORREF color);
+WINPP_NODISCARD Result<font>  create_font(string_view face, int height,
+                                          int weight = FW_NORMAL);
+```
+
+```cpp
+auto brush = winpp::gdi::create_solid_brush(RGB(0, 120, 215));
+auto pen   = winpp::gdi::create_pen(RGB(255, 0, 0), 2);
+auto font  = winpp::gdi::create_font("Segoe UI", 24);
+```
+
+### 8.3 `object_selector`
+
+```cpp
+class object_selector {
+public:
+    object_selector(HDC hdc, HGDIOBJ obj) noexcept;
+    ~object_selector();       // 自动恢复原对象
+    HGDIOBJ old() const noexcept;
+};
+```
+
+```cpp
+{
+    winpp::gdi::object_selector sel(hdc, font.value().get());
+    // 此作用域内使用该字体绘制
+}
+// 退出后自动恢复原字体
+```
+
+### 8.4 双缓冲 `back_buffer`
+
+```cpp
+class back_buffer {
+public:
+    static Result<back_buffer> create(HDC target, int width, int height);
+
+    bool valid() const noexcept;
+    HDC  native() const noexcept;
+
+    void flush(int x = 0, int y = 0) noexcept;
+};
+```
+
+```cpp
+w.value().on(WM_PAINT, [](winpp::ui::window& self, UINT, WPARAM, LPARAM) -> LRESULT {
+    PAINTSTRUCT ps;
+    HDC hdc = ::BeginPaint(self.native(), &ps);
+
+    RECT rc;
+    ::GetClientRect(self.native(), &rc);
+
+    auto bb = winpp::gdi::back_buffer::create(hdc, rc.right, rc.bottom);
+    if (bb) {
+        auto mem = winpp::gdi::dc::borrow(bb.value().native());
+
+        auto bg = winpp::gdi::create_solid_brush(RGB(32, 32, 32));
+        if (bg) mem.fill_rect(rc, bg.value().get());
+
+        mem.set_text_color(RGB(240, 240, 240));
+        mem.set_bk_mode(TRANSPARENT);
+        mem.text_out(10, 10, "hello");
+
+        bb.value().flush();
+    }
+
+    ::EndPaint(self.native(), &ps);
+    return 0;
+});
+```
+
+---
+
+## 9. 兼容层（`winpp::compat`）
 
 用户代码通常不需要直接碰这一层，但以下别名是公开的：
 
@@ -842,7 +966,7 @@ winpp::com::uninitialize();
 
 ---
 
-## 9. 错误码参考
+## 10. 错误码参考
 
 | 错误码 | 含义 | 判定函数 |
 | --- | --- | --- |
@@ -855,7 +979,7 @@ winpp::com::uninitialize();
 
 ---
 
-## 10. 已知限制
+## 11. 已知限制
 
 | 限制 | 说明 | 后续计划 |
 | --- | --- | --- |
@@ -868,11 +992,12 @@ winpp::com::uninitialize();
 | 注册表写权限 | 受限进程写 HKCU 会被拒绝（错误码 5） | 由运行环境决定 |
 | 剪贴板依赖桌面 | 无桌面会话下 `set_clipboard_text` 失败 | 由运行环境决定 |
 | `com_ptr` 能力有限 | 仅支持 `CoCreateInstance` 创建，未封装 `QueryInterface` 便捷方法 | 后续可加 |
-| 未实现层 | GDI 绘制、系统服务（见 Plan0 §11） | M7 起 |
+| GDI 能力有限 | 未封装文本排版、位图加载、路径与几何变换 | 后续可加 |
+| 未实现层 | 系统服务（SCM）、DirectX（见 Plan0 §11） | 后续版本 |
 
 ---
 
-## 11. 构建集成
+## 12. 构建集成
 
 当前推荐用 `add_subdirectory` 引入：
 
@@ -893,10 +1018,11 @@ cmake -S . -B build -DWINPP_LIBRARY_TYPE=static    # header-only | static | shar
 
 ---
 
-## 12. 版本记录
+## 13. 版本记录
 
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
+| v0.4 | 2026-11-07 | 新增 §8 GDI：dc / pen / brush / font / object_selector / back_buffer |
 | v0.3 | 2026-11-06 | 新增 §7 系统工具：注册表 / 环境变量 / 时间 / 剪贴板 / COM |
 | v0.2 | 2026-11-06 | 新增 §6 界面：window / message_loop / DPI / 控件 / message_box / tray_icon |
 | v0.1 | 2026-11-06 | 初版，覆盖 M0–M3 已实现接口 |

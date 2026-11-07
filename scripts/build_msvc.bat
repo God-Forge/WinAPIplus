@@ -1,6 +1,6 @@
 @echo off
 setlocal
-rem vcvars64.bat is broken in this VS install, so set the toolchain env manually.
+rem vcvars64.bat is broken on this machine, set toolchain env manually.
 set VSROOT=C:\Program Files\Microsoft Visual Studio\18\Community
 set MSVCVER=14.51.36231
 set MSVC=%VSROOT%\VC\Tools\MSVC\%MSVCVER%
@@ -19,12 +19,13 @@ if not exist "%T%" mkdir "%T%"
 set DEFS=/DWIN32_LEAN_AND_MEAN /DNOMINMAX /DUNICODE /D_UNICODE /D_WIN32_WINNT=0x0A00
 set FLAGS=/std:c++17 /utf-8 /EHsc /W4 /nologo /I "%ROOT%\include" /I "%ROOT%\third_party"
 set LIBS=user32.lib gdi32.lib shell32.lib advapi32.lib ole32.lib
-set TESTS="%ROOT%\tests\main.cpp" "%ROOT%\tests\test_result.cpp" "%ROOT%\tests\test_result_advanced.cpp" "%ROOT%\tests\test_string.cpp" "%ROOT%\tests\test_handle.cpp" "%ROOT%\tests\test_fs.cpp" "%ROOT%\tests\test_process.cpp" "%ROOT%\tests\test_ui.cpp" "%ROOT%\tests\test_sys.cpp" "%ROOT%\tests\test_com.cpp"
+set TESTS="%ROOT%\tests\main.cpp" "%ROOT%\tests\test_result.cpp" "%ROOT%\tests\test_result_advanced.cpp" "%ROOT%\tests\test_string.cpp" "%ROOT%\tests\test_handle.cpp" "%ROOT%\tests\test_fs.cpp" "%ROOT%\tests\test_process.cpp" "%ROOT%\tests\test_ui.cpp" "%ROOT%\tests\test_sys.cpp" "%ROOT%\tests\test_com.cpp" "%ROOT%\tests\test_gdi.cpp"
 set PASS=0
 set FAIL=0
 
 echo === [1/3] MSVC c++17 header-only ===
-cl %FLAGS% %DEFS% /DWINPP_HEADER_ONLY %TESTS% /Fe:"%T%\h.exe" /Fo:"%T%\\" %LIBS% > "%T%\h.log" 2>&1
+if not exist "%T%\hobj" mkdir "%T%\hobj"
+cl %FLAGS% %DEFS% /DWINPP_HEADER_ONLY %TESTS% /Fe:"%T%\h.exe" /Fo:"%T%\hobj\\" %LIBS% > "%T%\h.log" 2>&1
 if errorlevel 1 (
   echo [FAIL] header-only compile
   set /a FAIL+=1
@@ -34,13 +35,17 @@ if errorlevel 1 (
 )
 
 echo === [2/3] MSVC c++17 static ===
-cl %FLAGS% %DEFS% /c "%ROOT%\src\error.cpp" "%ROOT%\src\string.cpp" /Fo:"%T%\\" > "%T%\st.log" 2>&1
+if not exist "%T%\libobj" mkdir "%T%\libobj"
+pushd "%ROOT%\src"
+cl %FLAGS% %DEFS% /c *.cpp /Fo:"%T%\libobj\\" > "%T%\st.log" 2>&1
+popd
 if errorlevel 1 (
   echo [FAIL] static compile
   set /a FAIL+=1
 ) else (
-  lib /nologo /OUT:"%T%\winpp.lib" "%T%\error.obj" "%T%\string.obj" >> "%T%\st.log" 2>&1
-  cl %FLAGS% %DEFS% %TESTS% "%T%\winpp.lib" /Fe:"%T%\st.exe" /Fo:"%T%\\" %LIBS% >> "%T%\st.log" 2>&1
+  lib /nologo /OUT:"%T%\winpp.lib" "%T%\libobj\*.obj" >> "%T%\st.log" 2>&1
+  if not exist "%T%\stobj" mkdir "%T%\stobj"
+  cl %FLAGS% %DEFS% %TESTS% "%T%\winpp.lib" /Fe:"%T%\st.exe" /Fo:"%T%\stobj\\" %LIBS% >> "%T%\st.log" 2>&1
   if errorlevel 1 (
     echo [FAIL] static link
     set /a FAIL+=1
@@ -51,13 +56,17 @@ if errorlevel 1 (
 )
 
 echo === [3/3] MSVC c++17 shared ===
-cl %FLAGS% %DEFS% /DWINPP_BUILD_SHARED /c "%ROOT%\src\error.cpp" "%ROOT%\src\string.cpp" /Fo:"%T%\\" > "%T%\sh.log" 2>&1
+if not exist "%T%\shlibobj" mkdir "%T%\shlibobj"
+pushd "%ROOT%\src"
+cl %FLAGS% %DEFS% /DWINPP_BUILD_SHARED /c *.cpp /Fo:"%T%\shlibobj\\" > "%T%\sh.log" 2>&1
+popd
 if errorlevel 1 (
   echo [FAIL] shared compile
   set /a FAIL+=1
 ) else (
-  link /nologo /DLL /OUT:"%T%\winpp.dll" /IMPLIB:"%T%\winpp.lib" "%T%\error.obj" "%T%\string.obj" %LIBS% >> "%T%\sh.log" 2>&1
-  cl %FLAGS% %DEFS% /DWINPP_USE_SHARED %TESTS% "%T%\winpp.lib" /Fe:"%T%\sh.exe" /Fo:"%T%\\" %LIBS% >> "%T%\sh.log" 2>&1
+  link /nologo /DLL /OUT:"%T%\winpp.dll" /IMPLIB:"%T%\winpp.lib" "%T%\shlibobj\*.obj" %LIBS% >> "%T%\sh.log" 2>&1
+  if not exist "%T%\shobj" mkdir "%T%\shobj"
+  cl %FLAGS% %DEFS% /DWINPP_USE_SHARED %TESTS% "%T%\winpp.lib" /Fe:"%T%\sh.exe" /Fo:"%T%\shobj\\" %LIBS% >> "%T%\sh.log" 2>&1
   if errorlevel 1 (
     echo [FAIL] shared link
     set /a FAIL+=1

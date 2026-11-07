@@ -92,7 +92,8 @@ if(WINPP_BUILD_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_process.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ui.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sys.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_com.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_com.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gdi.cpp)
     target_include_directories(winpp_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
     target_link_libraries(winpp_tests PRIVATE winpp)
     add_test(NAME winpp_tests COMMAND winpp_tests)
@@ -113,4 +114,7 @@ if(WINPP_BUILD_EXAMPLES)
 
     add_executable(winpp_hello_window ${CMAKE_CURRENT_SOURCE_DIR}/examples/hello_window.cpp)
     target_link_libraries(winpp_hello_window PRIVATE winpp)
+
+    add_executable(winpp_paint_window ${CMAKE_CURRENT_SOURCE_DIR}/examples/paint_window.cpp)
+    target_link_libraries(winpp_paint_window PRIVATE winpp)
 endif()

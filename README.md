@@ -8,15 +8,15 @@
 
 ## 当前状态
 
-**M0–M6 里程碑已完成**：兼容层、核心类型、文件层、进程层、界面层、系统工具全部就位。
+**M0–M7 全部里程碑完成**：兼容层、核心类型、文件层、进程层、界面层、系统工具、GDI 绘制全部就位。
 
 | 验证项 | 结果 |
 | --- | --- |
-| MinGW-w64 g++ 11.5 × C++11/17/23 × header-only/static/shared | 9 / 9 通过 |
+| MinGW-w64 g++ 15.3 × C++11/17/23 × header-only/static/shared | 9 / 9 通过 |
 | CMake 4.5 构建：MinGW 三形态（含 ctest） | 3 / 3 通过 |
 | CMake 4.5 构建：MSVC 三形态（含 ctest） | 3 / 3 通过 |
 | 编译警告 | 0 |
-| 单元测试 | **40 个用例 / 140 个断言全绿** |
+| 单元测试 | **46 个用例 / 158 个断言全绿** |
 
 已实现的能力：
 
@@ -27,6 +27,7 @@
 | 进程 | `sys::run`（捕获 stdout/stderr）、`sys::process::spawn` / `wait` / `kill` |
 | 界面 | `ui::window` / `message_loop` / DPI 感知、`button` / `edit` / `listbox`、`message_box`、`tray_icon` |
 | 系统 | `sys::key`（注册表）、`sys::get_env` / `set_env` / `expand_env`、`sys::local_time` / `now_unix_ms`、`ui::clipboard_text`、`com::com_ptr` |
+| 绘制 | `gdi::dc`、`pen` / `brush` / `font`、`object_selector`、`back_buffer` 双缓冲 |
 
 ---
 
