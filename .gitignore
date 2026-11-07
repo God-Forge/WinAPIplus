@@ -14,3 +14,6 @@ out/
 # CMake 临时产物
 __cmake_systeminformation/
 api_doc_check.txt
+
+# 打包产物
+dist/

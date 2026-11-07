@@ -11,6 +11,10 @@
 #include <string>
 #include <vector>
 
+#if WINPP_HAS_STRING_VIEW
+#  include <string_view>
+#endif
+
 namespace winpp {
 
 // ---------------------------------------------------------------

@@ -41,6 +41,60 @@
 
 ---
 
+## 安装（静态库分发）
+
+### 方式一：安装包（推荐给 IDE 用户）
+
+1. 解压 `WinAPI++-1.0.0-win64.zip`
+2. 双击 `install.bat`（或右键 `install.ps1` → 用 PowerShell 运行）
+3. 安装程序会：
+   - 复制头文件与静态库到 `%LOCALAPPDATA%\WinAPI++`
+   - 设置用户环境变量 `WINPP_HOME`
+   - **检测 Visual Studio / Dev-C++ / RedPanda-C++**
+   - 在 `%LOCALAPPDATA%\WinAPI++\examples` 生成可直接打开的示例项目
+
+可选参数：
+
+```powershell
+.\install.ps1 -InstallDir "D:\WinAPI++"   # 自定义安装目录
+.\install.ps1 -NoEnv                      # 不设置环境变量
+.\install.ps1 -Force                      # 覆盖已有目录不询问
+```
+
+### 方式二：源码构建静态库
+
+```bash
+# MinGW
+bash scripts/build_static_mingw.sh        # -> dist/lib/mingw-ucrt-x64/libwinpp.a
+
+# MSVC
+cmd /c scripts\build_static_msvc.bat      # -> dist/lib/msvc-x64/winpp.lib
+
+# 打包成 zip
+bash scripts/package.sh                   # -> dist/WinAPI++-1.0.0-win64.zip
+```
+
+### 在自己的项目里使用静态库
+
+| 配置项 | 值 |
+| --- | --- |
+| 包含目录 | `<安装目录>\include` |
+| 库目录 | `<安装目录>\lib\msvc-x64`（MSVC）或 `<安装目录>\lib\mingw-ucrt-x64`（MinGW） |
+| 链接库 | `winpp.lib` / `libwinpp.a` + `user32 gdi32 shell32 advapi32 ole32` |
+| 宏定义 | `WIN32_LEAN_AND_MEAN` `NOMINMAX` `UNICODE` `_UNICODE` `_WIN32_WINNT=0x0A00` |
+
+> MSVC 用户注意：库是用 `/MD` 构建的，项目也要用 `/MD`（默认即是），否则会报 `LNK2038` CRT 不匹配。
+> 源文件若含中文，记得加 `/utf-8`。
+
+### CMake 用户
+
+```cmake
+find_package(WinAPI++ CONFIG REQUIRED)
+target_link_libraries(app PRIVATE WinAPI++::winpp)
+```
+
+---
+
 ## 快速开始
 
 ```cpp
